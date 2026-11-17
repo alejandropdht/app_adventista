@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    --font-serif: "Fraunces", Georgia, serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    overscroll-behavior-y: contain;
+  }
+}
+
+.font-display {
+  font-family: var(--font-serif);
+}
+
+.font-mono-code {
+  font-family: var(--font-mono);
+}
+
+/* Sabbath School lesson HTML prose formatting */
+.ss-prose {
+  font-size: 1.03rem;
+  line-height: 1.78;
+}
+
+.ss-prose p {
+  margin-bottom: 1.1rem;
+}
+
+.ss-prose h1,
+.ss-prose h2,
+.ss-prose h3,
+.ss-prose h4 {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.ss-prose blockquote {
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  background-color: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.22);
+  font-style: italic;
+}
+
+.dark .ss-prose blockquote {
+  background-color: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.24);
+}
+
+.ss-prose a.verse {
+  color: #b45309;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.dark .ss-prose a.verse {
+  color: #fbbf24;
+}
+
+.ss-prose ul,
+.ss-prose ol {
+  margin: 1rem 0 1.25rem 1.25rem;
+}
+
+.ss-prose ul {
+  list-style-type: disc;
+}
+
+.ss-prose ol {
+  list-style-type: decimal;
+}
+
+.ss-prose li {
+  margin-bottom: 0.5rem;
+}
+
+/* Hide scrollbars on snap video feed while keeping smooth scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Public Adventist social profile without PII",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "handle": { "type": "string", "minLength": 2, "maxLength": 40, "pattern": "^[a-zA-Z0-9_.]+$" },
+        "church": { "type": "string", "maxLength": 120 },
+        "bio": { "type": "string", "maxLength": 280 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "followersCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "postsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "handle", "followersCount", "followingCount", "postsCount", "createdAt", "updatedAt"]
+    },
+    "PrivateUser": {
+      "title": "PrivateUser",
+      "description": "Private user account settings and PII",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "preferredBibleVersion": { "type": "string", "enum": ["RV1960", "NVI", "NTV", "LBLA", "PDT", "BTX3", "NTBT", "RV2004"] },
+        "lastQuarterlyId": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "preferredBibleVersion", "createdAt", "updatedAt"]
+    },
+    "VideoPost": {
+      "title": "VideoPost",
+      "description": "Short-form vertical video post in the Adventist social feed",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "authorHandle": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "authorAvatar": { "type": "string", "maxLength": 500 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "caption": { "type": "string", "maxLength": 400 },
+        "youtubeId": { "type": "string", "maxLength": 32 },
+        "category": { "type": "string", "enum": ["Reflexion", "Musica", "EscuelaSabatica", "Testimonio", "Biblia", "Jovenes"] },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "lastCommentId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "authorId", "authorName", "authorHandle", "title", "youtubeId", "category", "likesCount", "commentsCount", "createdAt", "updatedAt"]
+    },
+    "Following": {
+      "title": "Following",
+      "description": "Creator followed by the user",
+      "type": "object",
+      "properties": {
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "targetName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "targetHandle": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetId", "targetName", "targetHandle", "createdAt"]
+    },
+    "VideoLike": {
+      "title": "VideoLike",
+      "description": "Like record for a video post",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "videoId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "videoId", "createdAt"]
+    },
+    "VideoComment": {
+      "title": "VideoComment",
+      "description": "Comment on a video post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "videoId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "authorAvatar": { "type": "string", "maxLength": 500 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "videoId", "authorId", "authorName", "text", "createdAt"]
+    },
+    "SavedVerse": {
+      "title": "SavedVerse",
+      "description": "User bookmarked or highlighted Bible verse",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "bookId": { "type": "number" },
+        "bookName": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "chapter": { "type": "number" },
+        "verse": { "type": "number" },
+        "version": { "type": "string", "minLength": 2, "maxLength": 12 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1200 },
+        "highlightColor": { "type": "string", "enum": ["amber", "sky", "emerald", "rose"] },
+        "note": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "bookId", "bookName", "chapter", "verse", "version", "text", "highlightColor", "createdAt"]
+    },
+    "LessonProgress": {
+      "title": "LessonProgress",
+      "description": "Sabbath School daily completion and personal study reflection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "quarterlyId": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "lessonId": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "dayId": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "completed": { "type": "boolean" },
+        "note": { "type": "string", "maxLength": 1500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "quarterlyId", "lessonId", "dayId", "completed", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/publicProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Public profile documents for community members"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/PrivateUser" },
+      "description": "Private user account and preferences"
+    },
+    "/users/{userId}/following/{targetId}": {
+      "schema": { "$ref": "#/entities/Following" },
+      "description": "Creators followed by the user"
+    },
+    "/users/{userId}/savedVerses/{verseId}": {
+      "schema": { "$ref": "#/entities/SavedVerse" },
+      "description": "Bookmarked and highlighted verses owned by the user"
+    },
+    "/users/{userId}/lessonProgress/{progressId}": {
+      "schema": { "$ref": "#/entities/LessonProgress" },
+      "description": "Sabbath School study progress and notes owned by the user"
+    },
+    "/videos/{videoId}": {
+      "schema": { "$ref": "#/entities/VideoPost" },
+      "description": "Community vertical video posts"
+    },
+    "/videos/{videoId}/likes/{userId}": {
+      "schema": { "$ref": "#/entities/VideoLike" },
+      "description": "Per-user like markers for video posts"
+    },
+    "/videos/{videoId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/VideoComment" },
+      "description": "Comments on a video post"
+    }
+  }
+}

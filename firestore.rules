@@ -1,0 +1,329 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection check endpoint (read-only single doc)
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // --- Reusable Hardened Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerified() && request.auth.uid == userId;
+    }
+
+    function isOptString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    // --- Validation Blueprints ---
+    function isValidPublicProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'handle', 'followersCount', 'followingCount', 'postsCount', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'handle', 'church', 'bio', 'photoURL', 'followersCount', 'followingCount', 'postsCount', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid == userId && isValidId(data.uid) &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+        data.handle is string && data.handle.size() >= 2 && data.handle.size() <= 40 && data.handle.matches('^[a-zA-Z0-9_.]+$') &&
+        isOptString(data, 'church', 120) &&
+        isOptString(data, 'bio', 280) &&
+        isOptString(data, 'photoURL', 500) &&
+        data.followersCount is int && data.followersCount >= 0 &&
+        data.followingCount is int && data.followingCount >= 0 &&
+        data.postsCount is int && data.postsCount >= 0 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPrivateUser(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'preferredBibleVersion', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'preferredBibleVersion', 'lastQuarterlyId', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid == userId && isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.preferredBibleVersion in ['RV1960', 'NVI', 'NTV', 'LBLA', 'PDT', 'BTX3', 'NTBT', 'RV2004'] &&
+        isOptString(data, 'lastQuarterlyId', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidFollowing(data, targetId) {
+      return data.keys().hasAll(['targetId', 'targetName', 'targetHandle', 'createdAt']) &&
+        data.keys().hasOnly(['targetId', 'targetName', 'targetHandle', 'createdAt']) &&
+        data.targetId is string && data.targetId == targetId && isValidId(data.targetId) &&
+        data.targetName is string && data.targetName.size() >= 1 && data.targetName.size() <= 80 &&
+        data.targetHandle is string && data.targetHandle.size() >= 2 && data.targetHandle.size() <= 40 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidVideoPost(data, videoId) {
+      return data.keys().hasAll(['id', 'authorId', 'authorName', 'authorHandle', 'title', 'youtubeId', 'category', 'likesCount', 'commentsCount', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'authorId', 'authorName', 'authorHandle', 'authorAvatar', 'title', 'caption', 'youtubeId', 'category', 'likesCount', 'commentsCount', 'lastCommentId', 'createdAt', 'updatedAt']) &&
+        data.id is string && data.id == videoId && isValidId(data.id) &&
+        data.authorId is string && isValidId(data.authorId) &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
+        data.authorHandle is string && data.authorHandle.size() >= 2 && data.authorHandle.size() <= 40 &&
+        isOptString(data, 'authorAvatar', 500) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        isOptString(data, 'caption', 400) &&
+        data.youtubeId is string && data.youtubeId.size() >= 6 && data.youtubeId.size() <= 32 && data.youtubeId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.category in ['Reflexion', 'Musica', 'EscuelaSabatica', 'Testimonio', 'Biblia', 'Jovenes'] &&
+        data.likesCount is int && data.likesCount >= 0 &&
+        data.commentsCount is int && data.commentsCount >= 0 &&
+        isOptString(data, 'lastCommentId', 128) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVideoLike(data, videoId, userId) {
+      return data.keys().hasAll(['userId', 'videoId', 'createdAt']) &&
+        data.keys().hasOnly(['userId', 'videoId', 'createdAt']) &&
+        data.userId is string && data.userId == userId && isValidId(data.userId) &&
+        data.videoId is string && data.videoId == videoId && isValidId(data.videoId) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidVideoComment(data, videoId, commentId) {
+      return data.keys().hasAll(['id', 'videoId', 'authorId', 'authorName', 'text', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'videoId', 'authorId', 'authorName', 'authorAvatar', 'text', 'createdAt']) &&
+        data.id is string && data.id == commentId && isValidId(data.id) &&
+        data.videoId is string && data.videoId == videoId && isValidId(data.videoId) &&
+        data.authorId is string && isValidId(data.authorId) &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
+        isOptString(data, 'authorAvatar', 500) &&
+        data.text is string && data.text.size() >= 1 && data.text.size() <= 400 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidSavedVerse(data, verseId, userId) {
+      return data.keys().hasAll(['id', 'userId', 'bookId', 'bookName', 'chapter', 'verse', 'version', 'text', 'highlightColor', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'bookId', 'bookName', 'chapter', 'verse', 'version', 'text', 'highlightColor', 'note', 'createdAt']) &&
+        data.id is string && data.id == verseId && isValidId(data.id) &&
+        data.userId is string && data.userId == userId && isValidId(data.userId) &&
+        data.bookId is int && data.bookId >= 1 && data.bookId <= 66 &&
+        data.bookName is string && data.bookName.size() >= 1 && data.bookName.size() <= 60 &&
+        data.chapter is int && data.chapter >= 1 && data.chapter <= 150 &&
+        data.verse is int && data.verse >= 1 && data.verse <= 176 &&
+        data.version is string && data.version.size() >= 2 && data.version.size() <= 12 &&
+        data.text is string && data.text.size() >= 1 && data.text.size() <= 1200 &&
+        data.highlightColor in ['amber', 'sky', 'emerald', 'rose'] &&
+        isOptString(data, 'note', 500) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidLessonProgress(data, progressId, userId) {
+      return data.keys().hasAll(['id', 'userId', 'quarterlyId', 'lessonId', 'dayId', 'completed', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'quarterlyId', 'lessonId', 'dayId', 'completed', 'note', 'createdAt', 'updatedAt']) &&
+        data.id is string && data.id == progressId && isValidId(data.id) &&
+        data.userId is string && data.userId == userId && isValidId(data.userId) &&
+        data.quarterlyId is string && data.quarterlyId.size() >= 1 && data.quarterlyId.size() <= 40 &&
+        data.lessonId is string && data.lessonId.size() >= 1 && data.lessonId.size() <= 40 &&
+        data.dayId is string && data.dayId.size() >= 1 && data.dayId.size() <= 40 &&
+        data.completed is bool &&
+        isOptString(data, 'note', 1500) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    // Public profiles (no PII)
+    match /publicProfiles/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if true;
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidPublicProfile(incoming(), userId) &&
+        incoming().followersCount == 0 &&
+        incoming().followingCount == 0 &&
+        incoming().postsCount == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidPublicProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'handle', 'church', 'bio', 'photoURL', 'updatedAt'])
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['postsCount', 'updatedAt']) &&
+            (incoming().postsCount == existing().postsCount + 1 || incoming().postsCount == existing().postsCount - 1)
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
+            (incoming().followingCount == existing().followingCount + 1 || incoming().followingCount == existing().followingCount - 1)
+          )
+        );
+      allow delete: if false;
+    }
+
+    // Private user settings (strict owner-only PII isolation)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidPrivateUser(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidPrivateUser(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().email == existing().email &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['preferredBibleVersion', 'lastQuarterlyId', 'updatedAt']);
+      allow delete: if false;
+
+      match /following/{targetId} {
+        allow get: if isValidId(userId) && isValidId(targetId) && isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isValidId(userId) && isValidId(targetId) &&
+          isOwner(userId) &&
+          isValidFollowing(incoming(), targetId) &&
+          incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(userId) && isValidId(targetId) && isOwner(userId);
+      }
+
+      match /savedVerses/{verseId} {
+        allow get: if isValidId(userId) && isValidId(verseId) && isOwner(userId);
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(verseId) &&
+          isOwner(userId) &&
+          isValidSavedVerse(incoming(), verseId, userId) &&
+          incoming().createdAt == request.time;
+        allow update: if isValidId(userId) && isValidId(verseId) &&
+          isOwner(userId) &&
+          isValidSavedVerse(incoming(), verseId, userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['highlightColor', 'note']);
+        allow delete: if isValidId(userId) && isValidId(verseId) && isOwner(userId);
+      }
+
+      match /lessonProgress/{progressId} {
+        allow get: if isValidId(userId) && isValidId(progressId) && isOwner(userId);
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(progressId) &&
+          isOwner(userId) &&
+          isValidLessonProgress(incoming(), progressId, userId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(progressId) &&
+          isOwner(userId) &&
+          isValidLessonProgress(incoming(), progressId, userId) &&
+          incoming().userId == existing().userId &&
+          incoming().quarterlyId == existing().quarterlyId &&
+          incoming().lessonId == existing().lessonId &&
+          incoming().dayId == existing().dayId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'note', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(progressId) && isOwner(userId);
+      }
+    }
+
+    // Community Videos Feed
+    match /videos/{videoId} {
+      allow get: if isValidId(videoId);
+      allow list: if true;
+      allow create: if isValidId(videoId) &&
+        isVerified() &&
+        isValidVideoPost(incoming(), videoId) &&
+        incoming().authorId == request.auth.uid &&
+        incoming().likesCount == 0 &&
+        incoming().commentsCount == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(videoId) &&
+        isVerified() &&
+        isValidVideoPost(incoming(), videoId) &&
+        incoming().id == existing().id &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (
+            incoming().authorId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'caption', 'category', 'updatedAt'])
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'updatedAt']) &&
+            (
+              (
+                incoming().likesCount == existing().likesCount + 1 &&
+                existsAfter(/databases/$(database)/documents/videos/$(videoId)/likes/$(request.auth.uid))
+              ) ||
+              (
+                incoming().likesCount == existing().likesCount - 1 &&
+                !existsAfter(/databases/$(database)/documents/videos/$(videoId)/likes/$(request.auth.uid))
+              )
+            )
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['commentsCount', 'lastCommentId', 'updatedAt']) &&
+            incoming().commentsCount == existing().commentsCount + 1 &&
+            isValidId(incoming().lastCommentId) &&
+            existsAfter(/databases/$(database)/documents/videos/$(videoId)/comments/$(incoming().lastCommentId))
+          )
+        );
+      allow delete: if isValidId(videoId) &&
+        isVerified() &&
+        existing().authorId == request.auth.uid;
+
+      match /likes/{userId} {
+        allow get: if isValidId(videoId) && isValidId(userId) && isSignedIn();
+        allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(videoId) && isValidId(userId) &&
+          isOwner(userId) &&
+          exists(/databases/$(database)/documents/videos/$(videoId)) &&
+          isValidVideoLike(incoming(), videoId, userId) &&
+          incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(videoId) && isValidId(userId) && isOwner(userId);
+      }
+
+      match /comments/{commentId} {
+        allow get: if isValidId(videoId) && isValidId(commentId);
+        allow list: if true;
+        allow create: if isValidId(videoId) && isValidId(commentId) &&
+          isVerified() &&
+          exists(/databases/$(database)/documents/videos/$(videoId)) &&
+          isValidVideoComment(incoming(), videoId, commentId) &&
+          incoming().authorId == request.auth.uid &&
+          incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(videoId) && isValidId(commentId) &&
+          isVerified() &&
+          existing().authorId == request.auth.uid;
+      }
+    }
+  }
+}
